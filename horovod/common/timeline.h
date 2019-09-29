@@ -23,6 +23,8 @@
 #include <mutex>
 #include <unordered_map>
 #include <vector>
+#include <time.h>
+#include <unistd.h>
 
 #include "common.h"
 #include "mpi_message.h"
@@ -93,7 +95,7 @@ public:
   void MarkCycleStart();
 
 private:
-  long TimeSinceStartMicros() const;
+  long long TimeSinceStartMicros(struct timespec* ts) const;
   void WriteEvent(const std::string& tensor_name, char phase,
                   const std::string& op_name = "",
                   const std::string& args = "");
