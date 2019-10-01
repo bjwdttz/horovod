@@ -50,8 +50,8 @@ public:
   inline bool IsHealthy() const { return healthy_; }
   void EnqueueWriteEvent(const std::string& tensor_name, char phase,
                          const std::string& op_name, const std::string& args,
-                         long ts_micros);
-  void EnqueueWriteMarker(const std::string& name, long ts_micros);
+                         long long ts_micros);
+  void EnqueueWriteMarker(const std::string& name, long long ts_micros);
 
 private:
   void DoWriteEvent(const TimelineRecord& r);

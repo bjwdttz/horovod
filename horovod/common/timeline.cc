@@ -45,7 +45,7 @@ void TimelineWriter::Initialize(std::string file_name) {
 void TimelineWriter::EnqueueWriteEvent(const std::string& tensor_name,
                                        char phase, const std::string& op_name,
                                        const std::string& args,
-                                       long ts_micros) {
+                                       long long ts_micros) {
   TimelineRecord r{};
   r.type = TimelineRecordType::EVENT;
   r.tensor_name = tensor_name;
@@ -59,7 +59,7 @@ void TimelineWriter::EnqueueWriteEvent(const std::string& tensor_name,
 }
 
 void TimelineWriter::EnqueueWriteMarker(const std::string& name,
-                                        long ts_micros) {
+                                        long long ts_micros) {
   TimelineRecord r{};
   r.type = TimelineRecordType::MARKER;
   r.marker_name = name;
