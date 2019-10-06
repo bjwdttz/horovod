@@ -15,7 +15,8 @@
 """Gradient compression algorithms."""
 
 import torch
-
+import numpy as np
+import torch.sparse
 
 class Compressor(object):
     """Interface for compressing and decompressing a given tensor."""
@@ -42,6 +43,29 @@ class NoneCompressor(Compressor):
         """Returns the tensor unmodified."""
         return tensor
 
+class RandomKCompressor(Compressor):
+    ### update the hash for each layer using layer name
+    # torch.cuda.manual_seed_all(hash(name) + global_step)
+    ### use random vector generated from a uniform distribution
+    # mask = torch.cuda.FloatTensor(flatten_grad.shape).uniform_(0, 1).ge(1-topk)
+    @staticmethod
+    def compress(flatten_grad):
+        topk = 0.1
+        torch.rand(123)
+        compress_grad = flatten_grad.clone()
+        mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(flatten_grad.numel() * (1.0-topk))
+        compress_grad[mask] = 0
+        compress_grad = compress_grad.to_sparse()
+
+        torch.randn()
+        
+        return compress_grad, True
+
+    @staticmethod
+    def decompress(flatten_grad, ctx):
+        if ctx == True:
+            tensor_decompressed = flatten_grad.to_dense()
+        return tensor_decompressed
 
 class FP16Compressor(Compressor):
     """Compress all floating point gradients to 16-bit."""
@@ -72,3 +96,5 @@ class Compression(object):
 
     """Compress all floating point gradients to 16-bit."""
     fp16 = FP16Compressor
+
+    randk = RandomKCompressor

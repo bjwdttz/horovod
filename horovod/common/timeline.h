@@ -41,7 +41,7 @@ struct TimelineRecord {
   std::string op_name;
   std::string args;
   std::string marker_name;
-  long ts_micros;
+  long long ts_micros;
 };
 
 class TimelineWriter {
