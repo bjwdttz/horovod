@@ -69,6 +69,7 @@ class RandomKCompressor(Compressor):
         ret.flag = True
         ret.tensor = compress_grad
         compress_grad = compress_grad.values()
+        print(flatten_grad.shape)
         return compress_grad, ret
 
     @staticmethod
