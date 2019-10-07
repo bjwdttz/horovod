@@ -50,7 +50,9 @@ class RandomKCompressor(Compressor):
     # mask = torch.cuda.FloatTensor(flatten_grad.shape).uniform_(0, 1).ge(1-topk)
     @staticmethod
     def compress(flatten_grad, ratio):
-        torch.rand(123)
+        torch.backends.cudnn.enabled = False
+        torch.manual_seed(123)
+        torch.cuda.manual_seed_all(123)
         compress_grad = flatten_grad.clone()
         mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(flatten_grad.numel() * (1.0-ratio))
         compress_grad[mask] = 0
