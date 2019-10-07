@@ -43,6 +43,11 @@ class NoneCompressor(Compressor):
         """Returns the tensor unmodified."""
         return tensor
 
+class stru:
+    def __init__(self):
+        self.flag = False
+        self.tensor = torch.cuda.sparse.FloatTensor(0, 0)
+
 class RandomKCompressor(Compressor):
     ### update the hash for each layer using layer name
     # torch.cuda.manual_seed_all(hash(name) + global_step)
@@ -57,12 +62,17 @@ class RandomKCompressor(Compressor):
         mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(flatten_grad.numel() * (1.0-ratio))
         compress_grad[mask] = 0
         compress_grad = compress_grad.to_sparse()
-        return compress_grad, True
+        ret = stru()
+        ret.flag = True
+        ret.tensor = compress_grad
+        compress_grad = compress_grad.values()
+        return compress_grad, ret
 
     @staticmethod
     def decompress(flatten_grad, ctx):
-        if ctx == True:
-            tensor_decompressed = flatten_grad.to_dense()
+        if ctx.flag() == True:
+            tensor_decompressed = ctx.tensor()
+            tensor_decompressed.values = flatten_grad.to_dense()
         return tensor_decompressed
 
 class FP16Compressor(Compressor):
