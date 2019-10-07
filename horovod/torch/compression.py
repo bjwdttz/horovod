@@ -70,8 +70,8 @@ class RandomKCompressor(Compressor):
 
     @staticmethod
     def decompress(flatten_grad, ctx):
-        if ctx.flag() == True:
-            tensor_decompressed = ctx.tensor()
+        if ctx.flag == True:
+            tensor_decompressed = ctx.tensor
             tensor_decompressed.values = flatten_grad.to_dense()
         return tensor_decompressed
 
