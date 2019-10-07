@@ -5,3 +5,6 @@ horovod.egg-info
 dist
 build
 .vscode/
+third_party/HTTPRequest/
+third_party/flatbuffers/
+third_party/gloo/

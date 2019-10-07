@@ -55,9 +55,6 @@ class RandomKCompressor(Compressor):
         mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(flatten_grad.numel() * (1.0-ratio))
         compress_grad[mask] = 0
         compress_grad = compress_grad.to_sparse()
-
-        torch.randn()
-        
         return compress_grad, True
 
     @staticmethod
