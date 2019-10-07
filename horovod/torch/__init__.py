@@ -40,8 +40,8 @@ import collections
 
 
 class _DistributedOptimizer(torch.optim.Optimizer):
-    def __init__(self, params, named_parameters, compression, comp_ratio=0,
-                 backward_passes_per_step=1):
+    def __init__(self, params, named_parameters, compression, 
+                 backward_passes_per_step=1, comp_ratio=1):
         super(self.__class__, self).__init__(params)
         self._compression = compression
 
@@ -153,7 +153,7 @@ class _DistributedOptimizer(torch.optim.Optimizer):
 
 def DistributedOptimizer(optimizer, named_parameters=None,
                          compression=Compression.none,
-                         backward_passes_per_step=1):
+                         backward_passes_per_step=1, comp_ratio=1):
     """
     An optimizer that wraps another torch.optim.Optimizer, using an allreduce to
     average gradient values before applying gradients to model weights.
