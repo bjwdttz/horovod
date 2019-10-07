@@ -72,8 +72,8 @@ class RandomKCompressor(Compressor):
     def decompress(flatten_grad, ctx):
         if ctx.flag == True:
             tensor_decompressed = ctx.tensor
-            tensor_decompressed.values = flatten_grad.to_dense()
-        return tensor_decompressed
+            tensor_decompressed.values = flatten_grad
+        return tensor_decompressed.to_dense()
 
 class FP16Compressor(Compressor):
     """Compress all floating point gradients to 16-bit."""
