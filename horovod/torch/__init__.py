@@ -40,7 +40,7 @@ import collections
 
 
 class _DistributedOptimizer(torch.optim.Optimizer):
-    def __init__(self, params, named_parameters, compression,
+    def __init__(self, params, named_parameters, compression, comp_ratio=0,
                  backward_passes_per_step=1):
         super(self.__class__, self).__init__(params)
         self._compression = compression
@@ -106,7 +106,7 @@ class _DistributedOptimizer(torch.optim.Optimizer):
     def _allreduce_grad_async(self, p):
         name = self._parameter_names.get(p)
         tensor = p.grad
-        tensor_compressed, ctx = self._compression.compress(tensor)
+        tensor_compressed, ctx = self._compression.compress(tensor, self.comp_ratio)
 
         handle = allreduce_async_(tensor_compressed, average=True, name=name)
         return handle, ctx

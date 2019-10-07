@@ -21,7 +21,7 @@ import torch.sparse
 class Compressor(object):
     """Interface for compressing and decompressing a given tensor."""
     @staticmethod
-    def compress(tensor):
+    def compress(tensor, ratio):
         """Compresses a tensor and returns it with the context needed to decompress it."""
         pass
 
@@ -34,7 +34,7 @@ class Compressor(object):
 class NoneCompressor(Compressor):
     """Default no-op compression."""
     @staticmethod
-    def compress(tensor):
+    def compress(tensor, ratio):
         """Returns the tensor unmodified."""
         return tensor, None
 
@@ -49,11 +49,10 @@ class RandomKCompressor(Compressor):
     ### use random vector generated from a uniform distribution
     # mask = torch.cuda.FloatTensor(flatten_grad.shape).uniform_(0, 1).ge(1-topk)
     @staticmethod
-    def compress(flatten_grad):
-        topk = 0.1
+    def compress(flatten_grad, ratio):
         torch.rand(123)
         compress_grad = flatten_grad.clone()
-        mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(flatten_grad.numel() * (1.0-topk))
+        mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(flatten_grad.numel() * (1.0-ratio))
         compress_grad[mask] = 0
         compress_grad = compress_grad.to_sparse()
 
@@ -70,7 +69,7 @@ class RandomKCompressor(Compressor):
 class FP16Compressor(Compressor):
     """Compress all floating point gradients to 16-bit."""
     @staticmethod
-    def compress(tensor):
+    def compress(tensor, ratio):
         """Downcasts the tensor to 16-bit."""
         tensor_compressed = tensor
         if tensor.dtype.is_floating_point:
