@@ -19,6 +19,7 @@ import numpy as np
 import torch.sparse
 import os 
 import random
+import math
 
 class Compressor(object):
     """Interface for compressing and decompressing a given tensor."""
@@ -74,7 +75,7 @@ class RandomKCompressor(Compressor):
         flatten_grad = tensor.reshape(-1)
         print("ori", flatten_grad.shape)
         compress_grad = flatten_grad.clone()
-        ret.mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(flatten_grad.numel() * ratio)
+        ret.mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(int(math.ceil(flatten_grad.numel() * ratio)))
         compress_grad = compress_grad[ret.mask]
         '''
         tcnt = 0
