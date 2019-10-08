@@ -17,6 +17,8 @@
 import torch
 import numpy as np
 import torch.sparse
+import os 
+import random
 
 class Compressor(object):
     """Interface for compressing and decompressing a given tensor."""
@@ -49,24 +51,35 @@ class stru:
         self.size = None
         self.tensor = torch.cuda.sparse.FloatTensor(0, 0)
 
+def seed_torch(seed=123):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed) # if you are using multi-GPU.
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+
+
 class RandomKCompressor(Compressor):
-    ### update the hash for each layer using layer name
-    # torch.cuda.manual_seed_all(hash(name) + global_step)
     ### use random vector generated from a uniform distribution
     # mask = torch.cuda.FloatTensor(flatten_grad.shape).uniform_(0, 1).ge(1-topk)
     @staticmethod
     def compress(tensor, ratio):
+        seed_torch()
         ret = stru()
         ret.size = tensor.shape
         flatten_grad = tensor.reshape(-1)
         print("ori", flatten_grad.shape)
-        torch.backends.cudnn.enabled = False
-        torch.manual_seed(123)
-        torch.cuda.manual_seed_all(123)
         compress_grad = flatten_grad.clone()
         mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(flatten_grad.numel() * (1.0-ratio))
         compress_grad[mask] = 0
         compress_grad = compress_grad.to_sparse()
+        for it1 in range(list(mask.shape)[0]): 
+            if ((mask[it1] == 1) and (it1 in compress_grad.indices())) or ((mask[it1] == 0) and (not it1 in compress_grad.indices())):
+                print("err elem", it1)
+
         ret.flag = True
         ret.tensor = compress_grad
         compress_grad = compress_grad.values()
