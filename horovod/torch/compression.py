@@ -93,7 +93,9 @@ class RandomKCompressor(Compressor):
             ctx.flag = False
         else:
             print("flag should be true!")
-        return tensor_decompressed.to_dense().reshape(ctx.size)
+
+        print(tensor_decompressed.shape)
+        return tensor_decompressed.reshape(ctx.size)
 
 class FP16Compressor(Compressor):
     """Compress all floating point gradients to 16-bit."""
