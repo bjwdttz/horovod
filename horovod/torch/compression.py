@@ -59,7 +59,6 @@ def seed_torch(seed=123):
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed) # if you are using multi-GPU.
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
@@ -69,7 +68,8 @@ class RandomKCompressor(Compressor):
     # mask = torch.cuda.FloatTensor(flatten_grad.shape).uniform_(0, 1).ge(1-topk)
     @staticmethod
     def compress(tensor, ratio):
-        seed_torch()
+        #seed_torch()
+        torch.cuda.manual_seed_all(seed) # if you are using multi-GPU.
         ret = stru()
         ret.size = tensor.shape
         flatten_grad = tensor.reshape(-1)
@@ -86,15 +86,12 @@ class RandomKCompressor(Compressor):
     def decompress(tensor, ctx):
         if ctx.flag == True:
             tensor_decompressed = ctx.tensor
-            print(tensor_decompressed.shape, ctx.mask.shape, tensor.shape)
+            #print(tensor_decompressed.shape, ctx.mask.shape, tensor.shape)
             tensor_decompressed[ctx.mask] = tensor
-            #for it1 in range(list(ctx.mask.shape)[0]):
-            #    tensor_decompressed[ctx.mask[it1]] = tensor[it1]
             ctx.flag = False
         else:
             print("flag should be true!")
-
-        print(tensor_decompressed.shape)
+        #print(tensor_decompressed.shape)
         return tensor_decompressed.reshape(ctx.size)
 
 class FP16Compressor(Compressor):
