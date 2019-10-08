@@ -59,6 +59,7 @@ class RandomKCompressor(Compressor):
         ret = stru()
         ret.size = tensor.shape
         flatten_grad = tensor.reshape(-1)
+        print("ori", flatten_grad.shape)
         torch.backends.cudnn.enabled = False
         torch.manual_seed(123)
         torch.cuda.manual_seed_all(123)
@@ -69,7 +70,7 @@ class RandomKCompressor(Compressor):
         ret.flag = True
         ret.tensor = compress_grad
         compress_grad = compress_grad.values()
-        print(compress_grad.shape)
+        print("comp", compress_grad.shape)
         return compress_grad, ret
 
     @staticmethod
