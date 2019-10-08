@@ -78,6 +78,7 @@ class RandomKCompressor(Compressor):
         compress_grad = compress_grad.to_sparse()
         for it1 in range(list(mask.shape)[0]):
             if mask[it1].item() == 1.0:
+                print(compress_grad.indices())
                 if it1 in compress_grad.indices():
                     print("err elem", it1)
             elif mask[it1].item() == 0.0:
