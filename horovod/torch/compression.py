@@ -88,6 +88,7 @@ class RandomKCompressor(Compressor):
             tensor_decompressed = ctx.tensor
             print(tensor_decompressed.shape, ctx.mask.shape, tensor.shape)
             for it1 in range(list(ctx.mask.shape)[0]):
+                print(it1)
                 tensor_decompressed[ctx.mask[it1]] = tensor[it1]
             ctx.flag = False
         else:
