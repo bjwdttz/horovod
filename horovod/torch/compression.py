@@ -73,33 +73,20 @@ class RandomKCompressor(Compressor):
         ret = stru()
         ret.size = tensor.shape
         flatten_grad = tensor.reshape(-1)
-        print("ori", flatten_grad.shape)
+        #print("ori", flatten_grad.shape)
         compress_grad = flatten_grad.clone()
         ret.mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(int(math.ceil(flatten_grad.numel() * ratio)))
         compress_grad = compress_grad[ret.mask]
-        '''
-        tcnt = 0
-        for it1 in range(list(mask.shape)[0]):
-            if mask[it1] == 0.0:
-                tcnt += 1
-        for it1 in range(list(mask.shape)[0]):
-            if mask[it1] == 1.0:
-                if it1 in compress_grad.indices()[0]:
-                    print("err elem1", it1)
-            elif mask[it1] == 0.0:
-                tcnt += 1
-                if not it1 in compress_grad.indices()[0]:
-                    print("err elem2", it1)
-        '''
         ret.flag = True
         ret.tensor = flatten_grad
-        print("comp", compress_grad.shape)
+        #print("comp", compress_grad.shape)
         return compress_grad, ret
 
     @staticmethod
     def decompress(tensor, ctx):
         if ctx.flag == True:
             tensor_decompressed = ctx.tensor
+            print(tensor_decompressed.shape, ctx.mask.shape, tensor.shape)
             for it1 in range(list(ctx.mask.shape)[0]):
                 tensor_decompressed[ctx.mask[it1]] = tensor[it1]
             ctx.flag = False
