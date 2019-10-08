@@ -76,13 +76,12 @@ class RandomKCompressor(Compressor):
         mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(flatten_grad.numel() * (1.0-ratio))
         compress_grad[mask] = 0
         compress_grad = compress_grad.to_sparse()
-        for it1 in range(list(mask.shape)[0]): 
-            print(mask[it1])
+        for it1 in range(list(mask.shape)[0]):
             if mask[it1].item() == 1.0:
                 if it1 in compress_grad.indices():
                     print("err elem", it1)
             elif mask[it1].item() == 0.0:
-                if not (it1 in compress_grad.indices():
+                if not it1 in compress_grad.indices():
                     print("err elem", it1)
 
         ret.flag = True
