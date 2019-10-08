@@ -87,9 +87,9 @@ class RandomKCompressor(Compressor):
         if ctx.flag == True:
             tensor_decompressed = ctx.tensor
             print(tensor_decompressed.shape, ctx.mask.shape, tensor.shape)
-            for it1 in range(list(ctx.mask.shape)[0]):
-                print(it1)
-                tensor_decompressed[ctx.mask[it1]] = tensor[it1]
+            tensor_decompressed[ctx.mask] = tensor
+            #for it1 in range(list(ctx.mask.shape)[0]):
+            #    tensor_decompressed[ctx.mask[it1]] = tensor[it1]
             ctx.flag = False
         else:
             print("flag should be true!")
