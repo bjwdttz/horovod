@@ -69,7 +69,7 @@ class RandomKCompressor(Compressor):
     @staticmethod
     def compress(tensor, ratio):
         #seed_torch()
-        torch.cuda.manual_seed_all(seed) # if you are using multi-GPU.
+        torch.cuda.manual_seed_all(123) # if you are using multi-GPU.
         ret = stru()
         ret.size = tensor.shape
         flatten_grad = tensor.reshape(-1)
