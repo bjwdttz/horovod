@@ -48,10 +48,10 @@ class NoneCompressor(Compressor):
 
 class stru:
     def __init__(self):
-        self.flag = False
         self.size = None
         self.mask = None
         self.tensor = None
+        self.is_comp = False
 
 def seed_torch(seed=123):
     random.seed(seed)
@@ -69,30 +69,28 @@ class RandomKCompressor(Compressor):
     @staticmethod
     def compress(tensor, ratio):
         #seed_torch()
-        torch.cuda.manual_seed_all(123) # if you are using multi-GPU.
         ret = stru()
-        ret.size = tensor.shape
-        flatten_grad = tensor.reshape(-1)
-        #print("ori", flatten_grad.shape)
-        compress_grad = flatten_grad.clone()
-        ret.mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(int(math.ceil(flatten_grad.numel() * ratio)))
-        compress_grad = compress_grad[ret.mask]
-        ret.flag = True
-        ret.tensor = flatten_grad
-        #print("comp", compress_grad.shape)
-        return compress_grad, ret
+        if ratio != 1:
+            torch.cuda.manual_seed_all(123) # if you are using multi-GPU.
+            ret.is_comp = True
+            ret.size = tensor.shape
+            flatten_grad = tensor.reshape(-1)
+            compress_grad = flatten_grad.clone()
+            ret.mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(int(math.ceil(flatten_grad.numel() * ratio)))
+            compress_grad = compress_grad[ret.mask]
+            ret.tensor = flatten_grad
+            return compress_grad, ret
+        else: 
+            return tensor, ret
 
     @staticmethod
     def decompress(tensor, ctx):
-        if ctx.flag == True:
-            tensor_decompressed = ctx.tensor
-            #print(tensor_decompressed.shape, ctx.mask.shape, tensor.shape)
-            tensor_decompressed[ctx.mask] = tensor
-            ctx.flag = False
+        if ctx.is_comp == False:
+            return tensor
         else:
-            print("flag should be true!")
-        #print(tensor_decompressed.shape)
-        return tensor_decompressed.reshape(ctx.size)
+            tensor_decompressed = ctx.tensor
+            tensor_decompressed[ctx.mask] = tensor
+            return tensor_decompressed.reshape(ctx.size)
 
 class FP16Compressor(Compressor):
     """Compress all floating point gradients to 16-bit."""
