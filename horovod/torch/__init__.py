@@ -107,7 +107,7 @@ class _DistributedOptimizer(torch.optim.Optimizer):
         name = self._parameter_names.get(p)
         tensor = p.grad
         tensor_compressed, ctx = self._compression.compress(tensor, 1)
-        print(name, ' ori_size:', list(tensor.reshape(-1).size())[0], ' comp_size:', list(tensor_compressed.reshape(-1).size())[0])
+        #print(name, ' ori_size:', list(tensor.reshape(-1).size())[0], ' comp_size:', list(tensor_compressed.reshape(-1).size())[0])
         handle = allreduce_async_(tensor_compressed, average=True, name=name)
         return handle, ctx
 

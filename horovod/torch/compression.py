@@ -71,7 +71,7 @@ class RandomKCompressor(Compressor):
         #seed_torch()
         ret = stru()
         if ratio != 1:
-            torch.cuda.manual_seed_all(123) # if you are using multi-GPU.
+            #torch.cuda.manual_seed_all(123) # if you are using multi-GPU.
             ret.is_comp = True
             ret.size = tensor.shape
             flatten_grad = tensor.reshape(-1)
