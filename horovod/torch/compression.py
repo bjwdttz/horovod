@@ -81,6 +81,7 @@ class RandomKCompressor(Compressor):
             compress_grad = compress_grad[ret.mask]
             ret.tensor = flatten_grad
             '''
+            ret.tensor = tensor
             compress_grad = torch.cuda.FloatTensor(int(tensor.nelement() * ratio))
             return compress_grad, ret
         else: 
@@ -95,8 +96,8 @@ class RandomKCompressor(Compressor):
             tensor_decompressed = ctx.tensor
             tensor_decompressed[ctx.mask] = tensor
             '''
-            tensor_decompressed = tensor.expand(ctx.size)
-            return tensor_decompressed.reshape(ctx.size)
+            #return tensor_decompressed.reshape(ctx.size)
+            return ctx.tensor 
 
 class FP16Compressor(Compressor):
     """Compress all floating point gradients to 16-bit."""
