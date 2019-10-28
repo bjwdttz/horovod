@@ -81,7 +81,7 @@ class RandomKCompressor(Compressor):
             compress_grad = compress_grad[ret.mask]
             ret.tensor = flatten_grad
             '''
-            compress_grad = torch.cuda.FloatTensor(tensor.nelement() * ratio)
+            compress_grad = torch.cuda.FloatTensor(int(tensor.nelement() * ratio))
             return compress_grad, ret
         else: 
             return tensor, ret
