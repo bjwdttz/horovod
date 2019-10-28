@@ -95,7 +95,7 @@ class RandomKCompressor(Compressor):
             tensor_decompressed = ctx.tensor
             tensor_decompressed[ctx.mask] = tensor
             '''
-            tensor_decompressed = torch.cuda.FloatTensor(ctx.size)
+            tensor_decompressed = tensor.expand(ctx.size)
             return tensor_decompressed.reshape(ctx.size)
 
 class FP16Compressor(Compressor):
