@@ -74,11 +74,14 @@ class RandomKCompressor(Compressor):
             #torch.cuda.manual_seed_all(123) # if you are using multi-GPU.
             ret.is_comp = True
             ret.size = tensor.shape
+            '''
             flatten_grad = tensor.reshape(-1)
             compress_grad = flatten_grad.clone()
             ret.mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(int(math.ceil(flatten_grad.numel() * ratio)))
             compress_grad = compress_grad[ret.mask]
             ret.tensor = flatten_grad
+            '''
+            compress_grad = torch.cuda.FloatTensor(tensor.nelement() * ratio)
             return compress_grad, ret
         else: 
             return tensor, ret
@@ -88,8 +91,11 @@ class RandomKCompressor(Compressor):
         if ctx.is_comp == False:
             return tensor
         else:
+            '''
             tensor_decompressed = ctx.tensor
             tensor_decompressed[ctx.mask] = tensor
+            '''
+            tensor_decompressed = torch.cuda.FloatTensor(ctx.size)
             return tensor_decompressed.reshape(ctx.size)
 
 class FP16Compressor(Compressor):
