@@ -1,6 +1,11 @@
 *.pyc
+*.so
 .idea
 .eggs
+
+.vscode/
+.idea/
+
 horovod.egg-info
 dist
 build

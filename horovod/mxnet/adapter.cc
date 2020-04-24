@@ -55,7 +55,7 @@ MXPersistentBuffer::AccessData(std::shared_ptr<OpContext> context) const {
 
 template <class T> MXTensor<T>::MXTensor(T* tensor) : tensor_(tensor) {}
 
-template <class T> const MPIDataType MXTensor<T>::dtype() const {
+template <class T> const DataType MXTensor<T>::dtype() const {
   return TensorUtil::GetDType(tensor_);
 }
 
@@ -71,11 +71,16 @@ template <class T> const TensorShape MXTensor<T>::shape() const {
 }
 
 template <class T> const void* MXTensor<T>::data() const {
+  // returns the raw data instead of NDArray Tensor
   return TensorUtil::GetData(tensor_);
 }
 
 template <class T> int64_t MXTensor<T>::size() const {
   return TensorUtil::GetSize(tensor_);
+}
+
+template <class T> T* MXTensor<T>::tensor() const {
+  return this->tensor_;
 }
 
 template <class T>
@@ -84,12 +89,14 @@ MXTemporaryBuffer<T>::MXTemporaryBuffer(int device, int dtype)
   this->tensor_ = TensorUtil::New(device, dtype);
 }
 
-template <class T> MXTemporaryBuffer<T>::~MXTemporaryBuffer() {
-  TensorUtil::Free(this->tensor_);
+template <class T>
+MXTemporaryBuffer<T>::MXTemporaryBuffer(T* tensor)
+    : MXTensor<T>(nullptr) {
+  this->tensor_ = tensor;
 }
 
-template <class T> T* MXTemporaryBuffer<T>::tensor() const {
-  return this->tensor_;
+template <class T> MXTemporaryBuffer<T>::~MXTemporaryBuffer() {
+  TensorUtil::Free(this->tensor_);
 }
 
 template <class T>

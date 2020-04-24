@@ -1,4 +1,4 @@
-# Copyright 2017 Uber Technologies, Inc. All Rights Reserved.
+# Copyright 2019 Uber Technologies, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-#!/usr/bin/env python
 
 import os
 import errno
@@ -113,7 +112,7 @@ def main(_):
     predict, loss = conv_model(image, label, tf.estimator.ModeKeys.TRAIN)
 
     # Horovod: adjust learning rate based on number of GPUs.
-    opt = tf.train.RMSPropOptimizer(0.001 * hvd.size())
+    opt = tf.train.AdamOptimizer(0.001 * hvd.size())
 
     # Horovod: add Horovod Distributed Optimizer.
     opt = hvd.DistributedOptimizer(opt)

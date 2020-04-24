@@ -40,6 +40,9 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 
+# Horovod: limit # of CPU threads to be used per worker.
+torch.set_num_threads(1)
+
 kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
 train_dataset = \
     datasets.MNIST('data-%d' % hvd.rank(), train=True, download=True,
@@ -90,12 +93,13 @@ if args.cuda:
     # Move model to GPU.
     model.cuda()
 
-# Horovod: broadcast parameters.
-hvd.broadcast_parameters(model.state_dict(), root_rank=0)
-
 # Horovod: scale learning rate by the number of GPUs.
 optimizer = optim.SGD(model.parameters(), lr=args.lr * hvd.size(),
                       momentum=args.momentum)
+
+# Horovod: broadcast parameters & optimizer state.
+hvd.broadcast_parameters(model.state_dict(), root_rank=0)
+hvd.broadcast_optimizer_state(optimizer, root_rank=0)
 
 # Horovod: (optional) compression algorithm.
 compression = hvd.Compression.fp16 if args.fp16_allreduce else hvd.Compression.none

@@ -20,7 +20,7 @@ from __future__ import print_function
 import horovod.mxnet as hvd
 import itertools
 import mxnet as mx
-import numpy as np
+import os
 import unittest
 from mxnet.base import MXNetError
 from mxnet.test_utils import same
@@ -28,6 +28,8 @@ from mxnet.test_utils import same
 
 has_gpu = mx.context.num_gpus() > 0
 
+# MLSL supports only byte, float and double data types
+mlsl_supported_types = set(['float32', 'float64'])
 
 class MXTests(unittest.TestCase):
     """
@@ -40,12 +42,17 @@ class MXTests(unittest.TestCase):
         else:
             return mx.current_context()
 
+    def filter_supported_types(self, types):
+        if 'MLSL_ROOT' in os.environ:
+           types = [t for t in types if t in mlsl_supported_types]
+        return types
+
     def test_horovod_allreduce(self):
         """Test that the allreduce correctly sums 1D, 2D, 3D tensors."""
         hvd.init()
         size = hvd.size()
-        dtypes = ['int32',   'int64',
-                  'float32', 'float64']
+        dtypes = self.filter_supported_types(['int32',   'int64',
+                                              'float32', 'float64'])
         dims = [1, 2, 3]
         ctx = self._current_context()
         count = 0
@@ -86,8 +93,8 @@ class MXTests(unittest.TestCase):
         """Test that the allreduce correctly sums 1D, 2D, 3D tensors."""
         hvd.init()
         size = hvd.size()
-        dtypes = ['int32',   'int64',
-                  'float32', 'float64']
+        dtypes = self.filter_supported_types(['int32',   'int64',
+                                              'float32', 'float64'])
         dims = [1, 2, 3]
         ctx = self._current_context()
         count = 0
@@ -125,8 +132,8 @@ class MXTests(unittest.TestCase):
         """Test that the allreduce correctly sums 1D, 2D, 3D tensors."""
         hvd.init()
         size = hvd.size()
-        dtypes = ['int32',   'int64',
-                  'float32', 'float64'] 
+        dtypes = self.filter_supported_types(['int32',   'int64',
+                                              'float32', 'float64'])
         dims = [1, 2, 3]
         ctx = self._current_context()
         count = 0
@@ -225,6 +232,10 @@ class MXTests(unittest.TestCase):
     def test_horovod_allreduce_cpu_gpu_error(self):
         """Test that the allreduce raises an error if different ranks try to
            perform reduction on CPU and GPU."""
+        if os.environ.get('HOROVOD_MIXED_INSTALL'):
+            # Skip if compiled with CUDA but without HOROVOD_GPU_ALLREDUCE.
+            return
+
         hvd.init()
         rank = hvd.rank()
         size = hvd.size()
@@ -355,7 +366,6 @@ class MXTests(unittest.TestCase):
         shapes = [(), (17), (17, 17), (17, 17, 17)]
         root_rank = 1
         tensor_dict = {}
-        broadcast_dict = {}
         root_dict = {}
         for dtype, dim, in itertools.product(dtypes, dims):
             tensor_dict[count] = mx.nd.ones(shapes[dim], ctx=ctx) * rank
@@ -444,6 +454,33 @@ class MXTests(unittest.TestCase):
             assert False, 'hvd.broadcast did not throw rank error'
         except (MXNetError, RuntimeError):
             pass
+
+    def test_horovod_broadcast_deferred_init_parameters(self):
+        """Test that the deferred initialized parameters are broadcasted."""
+        hvd.init()
+        root_rank = 0
+        rank = hvd.rank()
+
+        # This test does not apply if there is only one worker.
+        if hvd.size() == 1:
+            return
+
+        mx.random.seed(rank)
+        layer = mx.gluon.nn.Conv2D(10, 2)
+        layer.initialize()
+        hvd.broadcast_parameters(layer.collect_params(), root_rank=root_rank)
+
+        x = mx.nd.ones((5, 4, 10, 10))
+        layer(x)
+        tensors = [p.data() for _, p in sorted(layer.collect_params().items())]
+        root_tensors = []
+        for tensor in tensors:
+            root_tensors.append(hvd.broadcast(tensor, root_rank=root_rank))
+
+        for tensor, root_tensor in zip(tensors, root_tensors):
+            assert same(tensor.asnumpy(), root_tensor.asnumpy()), \
+                'horovod did not broadcast deferred initialized parameter correctly'
+
 
 if __name__ == '__main__':
     unittest.main()

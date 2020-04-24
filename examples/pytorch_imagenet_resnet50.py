@@ -86,6 +86,9 @@ verbose = 1 if hvd.rank() == 0 else 0
 log_writer = tensorboardX.SummaryWriter(args.log_dir) if hvd.rank() == 0 else None
 
 
+# Horovod: limit # of CPU threads to be used per worker.
+torch.set_num_threads(4)
+
 kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
 train_dataset = \
     datasets.ImageFolder(args.train_dir,
@@ -176,7 +179,7 @@ def train(epoch):
                 output = model(data_batch)
                 train_accuracy.update(accuracy(output, target_batch))
                 loss = F.cross_entropy(output, target_batch)
-                train_loss.update(loss.item())
+                train_loss.update(loss)
                 # Average gradients among sub-batches
                 loss.div_(math.ceil(float(len(data)) / args.batch_size))
                 loss.backward()

@@ -1,4 +1,4 @@
-# Copyright 2018 Uber Technologies, Inc. All Rights Reserved.
+# Copyright 2019 Uber Technologies, Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,13 +26,13 @@ import torch
 _v2_api = LooseVersion(torch.__version__) >= LooseVersion('1.0.0')
 if _v2_api:
     from horovod.torch import mpi_lib_v2 as mpi_lib
-    from horovod.common import HorovodBasics as _HorovodBasics
+    from horovod.common.basics import HorovodBasics as _HorovodBasics
     _NULL = ""
     _basics = _HorovodBasics(__file__, 'mpi_lib_v2')
 else:
     from horovod.torch import mpi_lib_impl
     from horovod.torch import mpi_lib
-    from horovod.common import HorovodBasics as _HorovodBasics
+    from horovod.common.basics import HorovodBasics as _HorovodBasics
     _NULL = mpi_lib._ffi.NULL
     _basics = _HorovodBasics(__file__, 'mpi_lib_impl', '_mpi_lib_impl')
 
@@ -46,6 +46,13 @@ local_size = _basics.local_size
 rank = _basics.rank
 local_rank = _basics.local_rank
 mpi_threads_supported = _basics.mpi_threads_supported
+mpi_enabled = _basics.mpi_enabled
+mpi_built = _basics.mpi_built
+gloo_enabled = _basics.gloo_enabled
+gloo_built = _basics.gloo_built
+nccl_built = _basics.nccl_built
+ddl_built = _basics.ddl_built
+mlsl_built = _basics.mlsl_built
 
 
 # Schema: handle -> input, output

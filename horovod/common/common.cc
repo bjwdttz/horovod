@@ -13,10 +13,10 @@
 // limitations under the License.
 // =============================================================================
 
+#include "common.h"
+
 #include <sstream>
 #include <cassert>
-
-#include "common.h"
 
 namespace horovod {
 namespace common {
@@ -48,8 +48,16 @@ Status Status::InvalidArgument(std::string message) {
   return Status(StatusType::INVALID_ARGUMENT, message);
 }
 
+Status Status::InProgress() {
+  return Status(StatusType::IN_PROGRESS, "");
+}
+
 bool Status::ok() const {
   return type_ == StatusType::OK;
+}
+
+bool Status::in_progress() const {
+  return type_ == StatusType::IN_PROGRESS;
 }
 
 StatusType Status::type() const {
@@ -100,6 +108,8 @@ int64_t TensorShape::num_elements() const {
   }
   return result;
 }
+
+const std::vector<int64_t>& TensorShape::to_vector() const { return shape_; }
 
 } // namespace common
 } // namespace horovod
