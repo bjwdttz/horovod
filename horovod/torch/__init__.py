@@ -45,8 +45,8 @@ import collections
 
 
 class _DistributedOptimizer(torch.optim.Optimizer):
-    def __init__(self, params, named_parameters, compression,
-                 backward_passes_per_step=1):
+    def __init__(self, params, named_parameters, compression, 
+                 backward_passes_per_step=1, comp_dict=dict()):
         super(self.__class__, self).__init__(params)
         self._compression = compression
 
@@ -119,8 +119,8 @@ class _DistributedOptimizer(torch.optim.Optimizer):
     def _allreduce_grad_async(self, p):
         name = self._parameter_names.get(p)
         tensor = p.grad
-        tensor_compressed, ctx = self._compression.compress(tensor)
-
+        tensor_compressed, ctx = self._compression.compress(tensor, 1)
+        #print(name, ' ori_size:', list(tensor.reshape(-1).size())[0], ' comp_size:', list(tensor_compressed.reshape(-1).size())[0])
         handle = allreduce_async_(tensor_compressed, average=True, name=name)
         return handle, ctx
 
@@ -204,7 +204,7 @@ class _DistributedOptimizer(torch.optim.Optimizer):
 
 def DistributedOptimizer(optimizer, named_parameters=None,
                          compression=Compression.none,
-                         backward_passes_per_step=1):
+                         backward_passes_per_step=1, comp_dict=dict()):
     """
     An optimizer that wraps another torch.optim.Optimizer, using an allreduce to
     average gradient values before applying gradients to model weights.

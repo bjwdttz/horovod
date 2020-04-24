@@ -15,12 +15,16 @@
 """Gradient compression algorithms."""
 
 import torch
-
+import numpy as np
+import torch.sparse
+import os 
+import random
+import math
 
 class Compressor(object):
     """Interface for compressing and decompressing a given tensor."""
     @staticmethod
-    def compress(tensor):
+    def compress(tensor, ratio):
         """Compresses a tensor and returns it with the context needed to decompress it."""
         pass
 
@@ -33,7 +37,7 @@ class Compressor(object):
 class NoneCompressor(Compressor):
     """Default no-op compression."""
     @staticmethod
-    def compress(tensor):
+    def compress(tensor, ratio):
         """Returns the tensor unmodified."""
         return tensor, None
 
@@ -42,11 +46,61 @@ class NoneCompressor(Compressor):
         """Returns the tensor unmodified."""
         return tensor
 
+class stru:
+    def __init__(self):
+        self.size = None
+        self.mask = None
+        self.tensor = None
+        self.is_comp = False
+
+def seed_torch(seed=123):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+
+
+class RandomKCompressor(Compressor):
+    ### use random vector generated from a uniform distribution
+    # mask = torch.cuda.FloatTensor(flatten_grad.shape).uniform_(0, 1).ge(1-topk)
+    @staticmethod
+    def compress(tensor, ratio):
+        #seed_torch()
+        ret = stru()
+        if ratio != 1:
+            #torch.cuda.manual_seed_all(123) # if you are using multi-GPU.
+            ret.is_comp = True
+            ret.size = tensor.shape
+            flatten_grad = tensor.reshape(-1)
+            compress_grad = flatten_grad.clone()
+            ret.mask = torch.randperm(flatten_grad.numel(), device=torch.device('cuda')).lt(int(math.ceil(flatten_grad.numel() * ratio)))
+            compress_grad = compress_grad[ret.mask]
+            ret.tensor = flatten_grad
+            '''
+            ret.tensor = tensor
+            compress_grad = torch.cuda.FloatTensor(int(tensor.nelement() * ratio))
+            '''
+            return compress_grad, ret
+        else: 
+            return tensor, ret
+
+    @staticmethod
+    def decompress(tensor, ctx):
+        if ctx.is_comp == False:
+            return tensor
+        else:
+            tensor_decompressed = ctx.tensor
+            tensor_decompressed[ctx.mask] = tensor
+            return tensor_decompressed.reshape(ctx.size)
+            #return ctx.tensor 
 
 class FP16Compressor(Compressor):
     """Compress all floating point gradients to 16-bit."""
     @staticmethod
-    def compress(tensor):
+    def compress(tensor, ratio):
         """Downcasts the tensor to 16-bit."""
         tensor_compressed = tensor
         if tensor.dtype.is_floating_point:
@@ -72,3 +126,5 @@ class Compression(object):
 
     """Compress all floating point gradients to 16-bit."""
     fp16 = FP16Compressor
+
+    randk = RandomKCompressor

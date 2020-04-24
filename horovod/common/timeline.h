@@ -23,6 +23,8 @@
 #include <mutex>
 #include <unordered_map>
 #include <vector>
+#include <time.h>
+#include <unistd.h>
 
 #include <boost/lockfree/spsc_queue.hpp>
 
@@ -41,7 +43,7 @@ struct TimelineRecord {
   std::string op_name;
   std::string args;
   std::string marker_name;
-  long ts_micros;
+  long long ts_micros;
 };
 
 class TimelineWriter {
@@ -50,8 +52,8 @@ public:
   inline bool IsHealthy() const { return healthy_; }
   void EnqueueWriteEvent(const std::string& tensor_name, char phase,
                          const std::string& op_name, const std::string& args,
-                         long ts_micros);
-  void EnqueueWriteMarker(const std::string& name, long ts_micros);
+                         long long ts_micros);
+  void EnqueueWriteMarker(const std::string& name, long long ts_micros);
 
 private:
   void DoWriteEvent(const TimelineRecord& r);
@@ -98,7 +100,7 @@ public:
   void MarkCycleStart();
 
 private:
-  long TimeSinceStartMicros() const;
+  long long TimeSinceStartMicros(struct timespec* ts) const;
   void WriteEvent(const std::string& tensor_name, char phase,
                   const std::string& op_name = "",
                   const std::string& args = "");

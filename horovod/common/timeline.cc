@@ -19,6 +19,8 @@
 #include <chrono>
 #include <sstream>
 #include <thread>
+#include <time.h>
+#include <unistd.h>
 
 #include "logging.h"
 
@@ -44,7 +46,7 @@ void TimelineWriter::Initialize(std::string file_name) {
 void TimelineWriter::EnqueueWriteEvent(const std::string& tensor_name,
                                        char phase, const std::string& op_name,
                                        const std::string& args,
-                                       long ts_micros) {
+                                       long long ts_micros) {
   TimelineRecord r{};
   r.type = TimelineRecordType::EVENT;
   r.tensor_name = tensor_name;
@@ -58,7 +60,7 @@ void TimelineWriter::EnqueueWriteEvent(const std::string& tensor_name,
 }
 
 void TimelineWriter::EnqueueWriteMarker(const std::string& name,
-                                        long ts_micros) {
+                                        long long ts_micros) {
   TimelineRecord r{};
   r.type = TimelineRecordType::MARKER;
   r.marker_name = name;
@@ -164,21 +166,22 @@ void Timeline::Initialize(std::string file_name, unsigned int horovod_size) {
   }
 }
 
-long Timeline::TimeSinceStartMicros() const {
-  auto now = std::chrono::steady_clock::now();
-  auto ts = now - start_time_;
-  return std::chrono::duration_cast<std::chrono::microseconds>(ts).count();
+long long Timeline::TimeSinceStartMicros(struct timespec* ts) const {
+  clock_gettime(CLOCK_MONOTONIC, ts);
+  return (long long) ts->tv_sec * (long long)1e9 + (long long) ts->tv_nsec;
 }
 
 // Write event to the Horovod Timeline file.
 void Timeline::WriteEvent(const std::string& tensor_name, const char phase,
                           const std::string& op_name, const std::string& args) {
-  auto ts_micros = TimeSinceStartMicros();
+  struct timespec ts;
+  auto ts_micros = TimeSinceStartMicros(&ts);
   writer_.EnqueueWriteEvent(tensor_name, phase, op_name, args, ts_micros);
 }
 
 void Timeline::WriteMarker(const std::string& name) {
-  auto ts_micros = TimeSinceStartMicros();
+  struct timespec ts;
+  auto ts_micros = TimeSinceStartMicros(&ts);
   writer_.EnqueueWriteMarker(name, ts_micros);
 }
 

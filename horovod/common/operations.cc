@@ -105,6 +105,180 @@ namespace common {
 
 namespace {
 
+// Table storing Tensors to be reduced, keyed by unique name.
+// This table contains everything necessary to do the reduction.
+struct TensorTableEntry {
+  // Name of the tensor.
+  std::string tensor_name;
+  // Operation context.
+  std::shared_ptr<OpContext> context;
+  // Input tensor.
+  std::shared_ptr<Tensor> tensor;
+  // Pre-allocated output tensor.
+  std::shared_ptr<Tensor> output;
+  // Root rank for broadcast operation.
+  int root_rank = 0;
+  // Event indicating that data is ready.
+  std::shared_ptr<ReadyEvent> ready_event;
+  // GPU to do reduction on, or CPU_DEVICE_ID in case of CPU.
+  int device = CPU_DEVICE_ID;
+  // A callback to call with the status.
+  StatusCallback callback;
+};
+using TensorTable = std::unordered_map<std::string, TensorTableEntry>;
+
+// Table for storing Tensor metadata on rank zero. This is used for error
+// checking, stall checking and size calculations, as well as determining
+// when a reduction is ready to be done (when all nodes are ready to do it).
+using MessageTable = std::unordered_map<
+    std::string,
+    std::tuple<std::vector<MPIRequest>, std::chrono::steady_clock::time_point>>;
+
+// The global state required for the MPI ops.
+//
+// MPI is a library that stores a lot of global per-program state and often
+// requires running on a single thread. As a result, we have to have a single
+// background thread responsible for all MPI operations, and communicate with
+// that background thread through global state.
+struct HorovodGlobalState {
+  // An atomic boolean which is set to true when background thread is started.
+  // This ensures that only one background thread is spawned.
+  std::atomic_flag initialize_flag = ATOMIC_FLAG_INIT;
+
+  // A mutex that needs to be used whenever MPI operations are done.
+  std::mutex mutex;
+
+  // Tensors waiting to be allreduced or allgathered.
+  TensorTable tensor_table;
+
+  // Queue of MPI requests waiting to be sent to the coordinator node.
+  std::queue<MPIRequest> message_queue;
+
+  // Background thread running MPI communication.
+  std::thread background_thread;
+
+  // Whether the background thread should shutdown.
+  std::atomic_bool shut_down{false};
+
+  // Whether Horovod should finalize MPI (only if it has initialized it).
+  bool should_finalize = false;
+
+  // Only exists on the coordinator node (rank zero). Maintains a count of
+  // how many nodes are ready to allreduce every tensor (keyed by tensor
+  // name) and time point when tensor started allreduce op.
+  std::unique_ptr<MessageTable> message_table;
+
+  // Time point when coordinator last checked for stalled tensors.
+  std::chrono::steady_clock::time_point last_stall_check;
+
+  // Flag indicating whether to perform stall tensor check.
+  bool perform_stall_check = true;
+
+  // Timeline writer.
+  Timeline timeline;
+
+  // Flag indicating whether to mark cycles in the timeline.
+  bool mark_cycles_in_timeline = false;
+
+  // Flag indicating whether to use ByteScheduler.
+  bool use_bytescheduler = false;
+
+  ParameterManager param_manager;
+
+  // Encapsulates the fusion buffers, handles resizing and auto-tuning of buffer
+  // size.
+  FusionBufferManager fusion_buffer;
+
+  // Time point when last cycle started.
+  std::chrono::steady_clock::time_point last_cycle_start;
+
+  // Whether MPI_Init has been completed on the background thread.
+  std::atomic_bool initialization_done{false};
+
+  // The MPI rank, local rank, size, local size, flag indicating whether MPI
+  // multi-threading is supported, ranks from which the MPI communicator will
+  // be made and the communicator itself.
+  int rank = 0;
+  int local_rank = 0;
+  int cross_rank = 0;
+  int size = 1;
+  int local_size = 1;
+  int cross_size = 1;
+  bool mpi_threads_supported = false;
+  bool is_homogeneous = false;
+  std::vector<int> ranks;
+
+  // COMM_WORLD ranks of processes running on this node.
+  std::vector<int> local_comm_ranks;
+
+  // Numbers of ranks running per node
+  std::vector<int> local_sizes;
+
+  // MPI custom data type for float16.
+  MPI_Datatype mpi_float16_t;
+  MPI_Op mpi_float16_sum;
+
+  // Private MPI communicator for Horovod to ensure no collisions with other
+  // threads using MPI.
+  MPI_Comm mpi_comm;
+
+  // Node-local communicator.
+  MPI_Comm local_comm;
+
+  // Cross-node communicator for hierarchical allreduce.
+  MPI_Comm cross_comm;
+
+  // MPI Window used for shared memory allgather
+  MPI_Win window;
+
+  // Pointer to shared buffer for allgather
+  void* shared_buffer = nullptr;
+
+  // Current shared buffer size
+  int64_t shared_buffer_size = 0;
+
+// The CUDA stream used for data transfers and within-allreduce operations.
+// A naive implementation would use the TensorFlow StreamExecutor CUDA
+// stream. However, the allreduce and allgather require doing memory copies
+// and kernel executions (for accumulation of values on the GPU). However,
+// the subsequent operations must wait for those operations to complete,
+// otherwise MPI (which uses its own stream internally) will begin the data
+// transfers before the CUDA calls are complete. In order to wait for those
+// CUDA operations, if we were using the TensorFlow stream, we would have to
+// synchronize that stream; however, other TensorFlow threads may be
+// submitting more work to that stream, so synchronizing on it can cause the
+// allreduce to be delayed, waiting for compute totally unrelated to it in
+// other parts of the graph. Overlaying memory transfers and compute during
+// backpropagation is crucial for good performance, so we cannot use the
+// TensorFlow stream, and must use our own stream.
+#if HAVE_CUDA
+  std::unordered_map<int, cudaStream_t> streams;
+#endif
+#if HAVE_NCCL
+  std::unordered_map<std::vector<int32_t>, ncclComm_t> nccl_comms;
+#endif
+
+  // Will be set to true after initialization when ddl is used
+  bool ddl_initialized = false;
+  int32_t ddl_local_device_id = 0;
+
+// We reuse CUDA events as it appears that their creation carries non-zero cost.
+#if HAVE_CUDA
+  std::unordered_map<int, std::queue<cudaEvent_t>> cuda_events;
+  std::mutex cuda_events_mutex;
+#endif
+
+  ~HorovodGlobalState() {
+    // Make sure that the destructor of the background thread is safe to
+    // call. If a thread is still joinable (not detached or complete) its
+    // destructor cannot be called.
+    if (background_thread.joinable()) {
+      shut_down = true;
+      background_thread.join();
+    }
+  }
+};
+
 // All the Horovod state that must be stored globally per-process.
 HorovodGlobalState horovod_global;
 
@@ -247,7 +421,12 @@ void PerformOperation(Response response) {
   }
   while (!waiting_tensors.empty()) {
     for (auto it = waiting_tensors.begin(); it != waiting_tensors.end();) {
-      if (it->ready_event->Ready()) {
+      auto ready = true;
+      // If bytescheduler is enabled, ready is also true for rank 0.
+      if (horovod_global.rank != 0 || !horovod_global.use_bytescheduler) {
+        it->ready_event->Ready();
+      }
+      if (ready) {
         timeline.ActivityEnd(it->tensor_name);
         timeline.ActivityStart(it->tensor_name, WAIT_FOR_OTHER_TENSOR_DATA);
         it = waiting_tensors.erase(it);
@@ -370,10 +549,12 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
     state.controller->SetTimelineEnabled(true);
   }
 
-  ParseStallInspectorFromEnv(state.controller->GetStallInspector());
-
-  SetBoolFromEnv(HOROVOD_TIMELINE_MARK_CYCLES, state.mark_cycles_in_timeline,
-                 true);
+  // Override use_bytescheduler flag
+  auto use_bytescheduler = std::getenv("USE_BYTESCHEDULER");
+  if (use_bytescheduler != nullptr &&
+      std::strtol(use_bytescheduler, nullptr, 10) > 0) {
+    state.use_bytescheduler = true;
+  }
 
   // Override Tensor Fusion threshold, if it's set.
   state.parameter_manager.SetTensorFusionThresholdBytes(64 * 1024 * 1024);
